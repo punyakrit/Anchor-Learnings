@@ -49,6 +49,7 @@ export function useCounterProgram() {
   }, 
 )
 return{
+  programId,
   program,
   accounts,
   getProgramAccount,
