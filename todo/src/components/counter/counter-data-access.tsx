@@ -10,6 +10,12 @@ import { useAnchorProvider } from '../solana/solana-provider'
 import { useTransactionToast } from '../use-transaction-toast'
 import { toast } from 'sonner'
 
+interface TodosArgs{
+  title: string
+  description: string
+  done: boolean
+}
+
 export function useCounterProgram() {
   const { connection } = useConnection()
   const { cluster } = useCluster()
@@ -20,7 +26,7 @@ export function useCounterProgram() {
 
   const accounts = useQuery({
     queryKey: ['counter', 'all', { cluster }],
-    queryFn: () => program.account.counter.all(),
+    queryFn: () => program.account.todo.all(),
   })
 
   const getProgramAccount = useQuery({
@@ -28,25 +34,30 @@ export function useCounterProgram() {
     queryFn: () => connection.getParsedAccountInfo(programId),
   })
 
-  const initialize = useMutation({
-    mutationKey: ['counter', 'initialize', { cluster }],
-    mutationFn: (keypair: Keypair) =>
-      program.methods.initialize().accounts({ counter: keypair.publicKey }).signers([keypair]).rpc(),
-    onSuccess: async (signature) => {
-      transactionToast(signature)
-      await accounts.refetch()
-    },
-    onError: () => {
-      toast.error('Failed to initialize account')
-    },
-  })
+  const initializeTodo = useMutation<string, Error,TodosArgs>(
+    {
+      mutationKey:['todo', 'initialize', { cluster }],
+      mutationFn: async({title, description, done })=>{
+          return program.methods.addTodo(title, description).rpc()
+      },
+      onSuccess:(signature) =>{
+        transactionToast(signature)
+        toast.success('Todo created successfully!')
+      },
+      onError:(error) =>{
+        toast.error('Failed to create todo.' + error.message)
+      }
+    }
+  )
+
+  
 
   return {
     program,
     programId,
     accounts,
     getProgramAccount,
-    initialize,
+    initializeTodo,
   }
 }
 
@@ -57,50 +68,40 @@ export function useCounterProgramAccount({ account }: { account: PublicKey }) {
 
   const accountQuery = useQuery({
     queryKey: ['counter', 'fetch', { cluster, account }],
-    queryFn: () => program.account.counter.fetch(account),
+    queryFn: () => program.account.todo.fetch(account),
   })
 
-  const closeMutation = useMutation({
-    mutationKey: ['counter', 'close', { cluster, account }],
-    mutationFn: () => program.methods.close().accounts({ counter: account }).rpc(),
-    onSuccess: async (tx) => {
-      transactionToast(tx)
-      await accounts.refetch()
+  const updateTodo = useMutation<string, Error, TodosArgs>({
+      mutationKey: ['todo', 'update', { cluster }],
+      mutationFn: async ({ title, description, done }) => {
+        return program.methods.updateTodo(title, description, done).rpc()
     },
-  })
+    onSuccess: (signature) => {
+      transactionToast(signature)
+      toast.success('Todo updated successfully!')
+    } ,
+    onError: (error) => {
+      toast.error('Failed to update todo.' + error.message)
+  }}
+)
 
-  const decrementMutation = useMutation({
-    mutationKey: ['counter', 'decrement', { cluster, account }],
-    mutationFn: () => program.methods.decrement().accounts({ counter: account }).rpc(),
-    onSuccess: async (tx) => {
-      transactionToast(tx)
-      await accountQuery.refetch()
-    },
-  })
+const deleteTodod = useMutation<string, Error>({
+  mutationKey: ['todo', 'delete', { cluster }],
+  mutationFn: async () => {
+    return program.methods.deleteTodo(title).rpc()
+  },
+  onSuccess: (signature) => {
+    transactionToast(signature)
+    toast.success('Todo deleted successfully!')
+  },
+  onError: (error) => {
+    toast.error('Failed to delete todo.' + error.message)
+  }
+})
 
-  const incrementMutation = useMutation({
-    mutationKey: ['counter', 'increment', { cluster, account }],
-    mutationFn: () => program.methods.increment().accounts({ counter: account }).rpc(),
-    onSuccess: async (tx) => {
-      transactionToast(tx)
-      await accountQuery.refetch()
-    },
-  })
-
-  const setMutation = useMutation({
-    mutationKey: ['counter', 'set', { cluster, account }],
-    mutationFn: (value: number) => program.methods.set(value).accounts({ counter: account }).rpc(),
-    onSuccess: async (tx) => {
-      transactionToast(tx)
-      await accountQuery.refetch()
-    },
-  })
 
   return {
     accountQuery,
-    closeMutation,
-    decrementMutation,
-    incrementMutation,
-    setMutation,
+    updateTodo,
   }
 }
