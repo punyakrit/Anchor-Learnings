@@ -22,10 +22,7 @@ pub fn transfered_tokens<'info> (
         trnasfer_accounts_option
     );
 
-    transfer_checked(cpi_context, amount, mint.decimals);
-
-
-    Ok(())
+    transfer_checked(cpi_context, amount, mint.decimals)
 
     
 }

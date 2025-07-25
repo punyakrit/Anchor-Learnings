@@ -4,6 +4,7 @@ use anchor_spl::{
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
 
+
 use crate::{transfered_tokens, Offer, ANCHOR_DISCRIMINATOR};
 
 #[derive(Accounts)]
@@ -13,14 +14,14 @@ pub struct MakeOffer<'info> {
     pub maker: Signer<'info>,
 
     #[account(mint::token_program=token_program)]
-    pub token_mint_giving: InterfaceAccount<'info, Mint>,
+    pub token_mint_a: InterfaceAccount<'info, Mint>,
 
     #[account(mint::token_program=token_program)]
-    pub token_mint_want: InterfaceAccount<'info, Mint>,
+    pub token_mint_b: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut,
-        associated_token::mint = token_mint_giving,
+        associated_token::mint = token_mint_a,
         associated_token::authority = maker,
         associated_token::token_program = token_program
     )]
@@ -38,7 +39,7 @@ pub struct MakeOffer<'info> {
     #[account(
         init,
         payer= maker,
-        associated_token::mint = token_mint_giving,
+        associated_token::mint = token_mint_a,
         associated_token::authority = offer,
         associated_token::token_program = token_program
     )]
@@ -56,21 +57,29 @@ pub fn send_offered_tokens_to_vault(
     token_giving_amount: u64,
 ) -> Result<()> {
     transfered_tokens(
-        &ctx.accounts.maker_token_account,
-        &ctx.accounts.vault,
-        token_giving_amount,
-        &ctx.accounts.token_mint_giving,
-        &ctx.accounts.maker,
-        &ctx.accounts.token_program,
-    );
+    &ctx.accounts.maker_token_account,
+    &ctx.accounts.vault,
+    token_giving_amount,
+    &ctx.accounts.token_mint_a,
+    &ctx.accounts.maker,
+    &ctx.accounts.token_program,
+)?;
 
     Ok(())
 }
 
 pub fn save_offer(
     ctx: Context<MakeOffer>, 
-    _id: u64, 
+    id: u64, 
     token_wanted_amount: u64,
 ) -> Result<()> {
+    ctx.accounts.offer.set_inner(Offer { 
+        id, 
+        maker : ctx.accounts.maker.key(), 
+        token_mint_a: ctx.accounts.token_mint_a.key(),
+        token_mint_b: ctx.accounts.token_mint_b.key(), 
+        token_want_amount: token_wanted_amount, 
+        bump: ctx.bumps.offer
+        });
     Ok(())
 }
